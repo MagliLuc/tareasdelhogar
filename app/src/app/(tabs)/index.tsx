@@ -1,85 +1,161 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import {
+  AccessibilityInfo,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button } from '@/components/ui';
+import { TaskCard } from '@/components/task-card';
+import {
+  completeInstance,
+  endOfDayISO,
+  fetchInstances,
+  startOfDayISO,
+  uncompleteInstance,
+} from '@/lib/api';
 import { supabase } from '@/lib/supabase';
-import { colors, spacing } from '@/lib/theme';
-import { Household } from '@/lib/types';
+import { spacing } from '@/lib/theme';
+import { TaskInstance } from '@/lib/types';
+import { useRealtimeInstances } from '@/hooks/use-realtime-instances';
 import { useAuth } from '@/providers/auth-provider';
+import { useTheme } from '@/providers/settings-provider';
 
 export default function TodayScreen() {
-  const { profile, signOut } = useAuth();
+  const { profile } = useAuth();
+  const { colors, ts } = useTheme();
   const insets = useSafeAreaInsets();
-  const [household, setHousehold] = useState<Household | null>(null);
+  const [instances, setInstances] = useState<TaskInstance[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const loadHousehold = useCallback(async () => {
+  const load = useCallback(async () => {
     if (!profile?.household_id) return;
-    const { data } = await supabase
-      .from('households')
-      .select('*')
-      .eq('id', profile.household_id)
-      .single();
-    setHousehold(data as Household);
-    // Genera las instancias de los próximos días si faltan
-    await supabase.rpc('generate_task_instances', { p_days_ahead: 7 });
+    try {
+      setError(null);
+      // Genera instancias que falten y trae desde hace 7 días
+      // (para mostrar atrasadas) hasta el fin de hoy
+      await supabase.rpc('generate_task_instances', { p_days_ahead: 7 });
+      const from = new Date();
+      from.setDate(from.getDate() - 7);
+      const data = await fetchInstances(
+        profile.household_id,
+        startOfDayISO(from),
+        endOfDayISO(new Date())
+      );
+      setInstances(data);
+    } catch {
+      setError('No pudimos cargar tus tareas. Deslizá hacia abajo para reintentar.');
+    }
   }, [profile?.household_id]);
 
-  useEffect(() => {
-    loadHousehold();
-  }, [loadHousehold]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  useRealtimeInstances(profile?.household_id ?? null, load);
+
+  async function onRefresh() {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }
+
+  async function toggleComplete(instance: TaskInstance) {
+    try {
+      if (instance.status === 'done') {
+        await uncompleteInstance(instance.id);
+        AccessibilityInfo.announceForAccessibility('Tarea desmarcada');
+      } else {
+        await completeInstance(instance.id);
+        AccessibilityInfo.announceForAccessibility(
+          `Tarea completada. Sumaste ${instance.task?.points ?? 0} puntos`
+        );
+      }
+      await load();
+    } catch {
+      setError('No se pudo actualizar la tarea. Probá de nuevo.');
+    }
+  }
+
+  const mine = instances.filter((i) => i.assigned_to === profile?.id);
+  const pending = mine.filter((i) => i.status === 'pending');
+  const doneToday = mine.filter(
+    (i) => i.status === 'done' && new Date(i.due_at) >= new Date(startOfDayISO(new Date()))
+  );
 
   return (
     <ScrollView
-      style={styles.flex}
+      style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing.lg }]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <Text style={styles.greeting}>¡Hola, {profile?.name}! 👋</Text>
-      <Text style={styles.household}>{household?.name ?? '...'}</Text>
+      <Text
+        accessibilityRole="header"
+        style={{ fontSize: ts(24), fontWeight: '800', color: colors.text }}
+      >
+        ¡Hola, {profile?.name}! 👋
+      </Text>
+      <Text style={{ fontSize: ts(15), color: colors.textMuted, marginBottom: spacing.lg }}>
+        {pending.length === 0
+          ? 'No tenés tareas pendientes. ¡Bien ahí! 🎉'
+          : `Tenés ${pending.length} ${pending.length === 1 ? 'tarea pendiente' : 'tareas pendientes'}`}
+      </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Código de invitación</Text>
-        <Text style={styles.inviteCode}>{household?.invite_code ?? '——————'}</Text>
-        <Text style={styles.cardHint}>
-          Compartilo con tu familia para que se sumen al hogar
+      {!!error && (
+        <Text
+          accessibilityLiveRegion="assertive"
+          style={{ color: colors.danger, fontSize: ts(14), marginBottom: spacing.md }}
+        >
+          {error}
         </Text>
-      </View>
+      )}
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Próximamente acá</Text>
-        <Text style={styles.cardHint}>
-          Tus tareas del día, el calendario compartido y el ranking semanal. ¡Estamos en
-          plena construcción! 🚧
-        </Text>
-      </View>
+      {pending.map((instance) => (
+        <TaskCard
+          key={instance.id}
+          instance={instance}
+          onPress={() => router.push(`/task/${instance.id}`)}
+          onToggleComplete={() => toggleComplete(instance)}
+        />
+      ))}
 
-      <View style={{ marginTop: spacing.lg }}>
-        <Button title="Cerrar sesión" variant="secondary" onPress={signOut} />
-      </View>
+      {doneToday.length > 0 && (
+        <>
+          <Text
+            accessibilityRole="header"
+            style={{
+              fontSize: ts(16),
+              fontWeight: '700',
+              color: colors.textMuted,
+              marginTop: spacing.lg,
+              marginBottom: spacing.sm,
+            }}
+          >
+            Completadas hoy ✅
+          </Text>
+          {doneToday.map((instance) => (
+            <TaskCard
+              key={instance.id}
+              instance={instance}
+              onPress={() => router.push(`/task/${instance.id}`)}
+              onToggleComplete={() => toggleComplete(instance)}
+            />
+          ))}
+        </>
+      )}
+
+      <View style={{ height: spacing.xl }} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
   container: { padding: spacing.lg },
-  greeting: { fontSize: 24, fontWeight: '800', color: colors.text },
-  household: { fontSize: 16, color: colors.textMuted, marginBottom: spacing.lg },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: colors.textMuted, marginBottom: 4 },
-  inviteCode: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.primary,
-    letterSpacing: 6,
-    marginVertical: spacing.xs,
-  },
-  cardHint: { fontSize: 14, color: colors.textMuted, lineHeight: 20 },
 });

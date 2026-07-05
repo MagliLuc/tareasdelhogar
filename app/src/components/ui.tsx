@@ -9,10 +9,11 @@ import {
   View,
 } from 'react-native';
 
-import { colors, spacing } from '@/lib/theme';
+import { spacing } from '@/lib/theme';
+import { useTheme } from '@/providers/settings-provider';
 
 // ------------------------------------------------------------
-// Botón primario/secundario con estado de carga
+// Botón primario/secundario con estado de carga, accesible
 // ------------------------------------------------------------
 interface ButtonProps {
   title: string;
@@ -20,6 +21,7 @@ interface ButtonProps {
   loading?: boolean;
   disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'danger';
+  accessibilityHint?: string;
 }
 
 export function Button({
@@ -28,16 +30,24 @@ export function Button({
   loading = false,
   disabled = false,
   variant = 'primary',
+  accessibilityHint,
 }: ButtonProps) {
+  const { colors, ts } = useTheme();
   const isDisabled = disabled || loading;
+  const bg =
+    variant === 'primary' ? colors.primary : variant === 'danger' ? colors.danger : 'transparent';
   return (
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       style={({ pressed }) => [
         styles.button,
-        variant === 'secondary' && styles.buttonSecondary,
-        variant === 'danger' && styles.buttonDanger,
+        { backgroundColor: bg },
+        variant === 'secondary' && { borderWidth: 2, borderColor: colors.primary },
         (pressed || isDisabled) && { opacity: 0.6 },
       ]}
     >
@@ -45,7 +55,11 @@ export function Button({
         <ActivityIndicator color={variant === 'secondary' ? colors.primary : '#fff'} />
       ) : (
         <Text
-          style={[styles.buttonText, variant === 'secondary' && styles.buttonTextSecondary]}
+          style={{
+            color: variant === 'secondary' ? colors.primary : '#fff',
+            fontSize: ts(17),
+            fontWeight: '700',
+          }}
         >
           {title}
         </Text>
@@ -55,7 +69,7 @@ export function Button({
 }
 
 // ------------------------------------------------------------
-// Campo de texto con etiqueta y mensaje de error
+// Campo de texto con etiqueta y mensaje de error, accesible
 // ------------------------------------------------------------
 interface InputProps extends TextInputProps {
   label: string;
@@ -63,80 +77,124 @@ interface InputProps extends TextInputProps {
 }
 
 export function Input({ label, error, ...props }: InputProps) {
+  const { colors, ts } = useTheme();
   return (
     <View style={styles.inputWrapper}>
-      <Text style={styles.inputLabel}>{label}</Text>
+      <Text style={{ fontSize: ts(14), fontWeight: '600', color: colors.text, marginBottom: 4 }}>
+        {label}
+      </Text>
       <TextInput
+        accessibilityLabel={label}
         placeholderTextColor={colors.textMuted}
-        style={[styles.input, !!error && { borderColor: colors.danger }]}
+        style={[
+          styles.input,
+          {
+            backgroundColor: colors.card,
+            borderColor: error ? colors.danger : colors.border,
+            color: colors.text,
+            fontSize: ts(16),
+          },
+        ]}
         {...props}
       />
-      {!!error && <Text style={styles.inputError}>{error}</Text>}
+      {!!error && (
+        <Text
+          accessibilityLiveRegion="polite"
+          style={{ color: colors.danger, fontSize: ts(13), marginTop: 4 }}
+        >
+          {error}
+        </Text>
+      )}
     </View>
   );
 }
 
 // ------------------------------------------------------------
-// Mensaje de error general de pantalla
+// Mensaje de error general de pantalla (anunciado al lector)
 // ------------------------------------------------------------
 export function ErrorText({ message }: { message: string | null }) {
+  const { colors, ts } = useTheme();
   if (!message) return null;
-  return <Text style={styles.errorText}>{message}</Text>;
+  return (
+    <Text
+      accessibilityLiveRegion="assertive"
+      style={{
+        color: colors.danger,
+        fontSize: ts(14),
+        textAlign: 'center',
+        marginBottom: spacing.md,
+      }}
+    >
+      {message}
+    </Text>
+  );
+}
+
+// ------------------------------------------------------------
+// Chip seleccionable (filtros y formularios), accesible
+// ------------------------------------------------------------
+interface ChipProps {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}
+
+export function Chip({ label, selected, onPress }: ChipProps) {
+  const { colors, ts } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      style={[
+        styles.chip,
+        {
+          backgroundColor: selected ? colors.primary : colors.card,
+          borderColor: selected ? colors.primary : colors.border,
+        },
+      ]}
+    >
+      <Text
+        style={{
+          color: selected ? '#fff' : colors.text,
+          fontSize: ts(14),
+          fontWeight: selected ? '700' : '500',
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 16,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 54,
   },
-  buttonSecondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  buttonDanger: {
-    backgroundColor: colors.danger,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  buttonTextSecondary: {
-    color: colors.primary,
-  },
   inputWrapper: {
     marginBottom: spacing.md,
   },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
   input: {
-    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: spacing.md,
     paddingVertical: 14,
-    fontSize: 16,
-    color: colors.text,
+    minHeight: 50,
   },
-  inputError: {
-    color: colors.danger,
-    fontSize: 13,
-    marginTop: spacing.xs,
-  },
-  errorText: {
-    color: colors.danger,
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: spacing.md,
+  chip: {
+    borderRadius: 20,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minHeight: 44,
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+    marginBottom: spacing.sm,
   },
 });

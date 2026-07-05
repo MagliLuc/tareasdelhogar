@@ -2,11 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 
-import { colors } from '@/lib/theme';
 import { useAuth } from '@/providers/auth-provider';
+import { useTheme } from '@/providers/settings-provider';
 
 export default function TabsLayout() {
   const { session, profile, loading } = useAuth();
+  const { colors, ts } = useTheme();
 
   if (loading) {
     return (
@@ -24,6 +25,8 @@ export default function TabsLayout() {
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
+        tabBarLabelStyle: { fontSize: ts(12), fontWeight: '600' },
         headerShown: false,
       }}
     >
@@ -31,9 +34,21 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Hoy',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="sunny" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="sunny" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="tasks"
+        options={{
+          title: 'Tareas',
+          tabBarIcon: ({ color, size }) => <Ionicons name="list" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Ajustes',
+          tabBarIcon: ({ color, size }) => <Ionicons name="settings" size={size} color={color} />,
         }}
       />
     </Tabs>
