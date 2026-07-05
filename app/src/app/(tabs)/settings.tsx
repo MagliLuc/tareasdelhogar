@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   AccessibilityInfo,
+  KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -93,9 +94,11 @@ export default function SettingsScreen() {
   );
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing.lg }]}
+      keyboardShouldPersistTaps="handled"
     >
       <Text
         accessibilityRole="header"
@@ -236,6 +239,7 @@ export default function SettingsScreen() {
 
       <View style={{ height: spacing.xl }} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

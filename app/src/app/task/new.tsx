@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import {
   AccessibilityInfo,
   KeyboardAvoidingView,
-  Platform,
+
   ScrollView,
   StyleSheet,
   Text,
@@ -148,7 +148,7 @@ export default function NewTaskScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
     >
       <ScrollView
         contentContainerStyle={[styles.container, { paddingTop: insets.top + spacing.md }]}
