@@ -76,4 +76,29 @@ Así, quien trabaja más horas o ya tiene más tareas asignadas recibe menos car
 
 ## Desarrollo de la app
 
-Próximamente: la app Expo vive en `app/`. Se prueba con **Expo Go** en el celular escaneando un QR (sin emuladores ni cables).
+La app Expo vive en `app/`:
+
+```
+app/src/
+├── app/                # Rutas (expo-router)
+│   ├── (auth)/         # login y registro
+│   ├── onboarding.tsx  # crear o unirse a un hogar
+│   └── (tabs)/         # pantallas principales (requieren sesión + hogar)
+├── components/         # UI reutilizable (Button, Input, ...)
+├── lib/                # cliente Supabase, tipos y tema
+└── providers/          # AuthProvider (sesión + perfil)
+```
+
+### Probar en el celular (Expo Go)
+
+1. Instalá **Expo Go** desde Google Play / App Store.
+2. En la PC:
+   ```bash
+   cd app
+   cp .env.example .env   # y completá con tus claves de Supabase
+   npm install
+   npx expo start
+   ```
+3. Escaneá el QR que aparece en la terminal (con Expo Go en Android, o con la cámara en iPhone). El celular y la PC tienen que estar en la **misma red WiFi**.
+
+> Para desarrollo, desactivá la confirmación de email en Supabase: *Authentication → Sign In / Providers → Email → Confirm email* en OFF. Si no, cada registro queda esperando el mail de confirmación.
