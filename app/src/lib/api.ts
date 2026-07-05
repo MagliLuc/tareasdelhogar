@@ -1,7 +1,14 @@
 // Capa de acceso a datos: todas las consultas a Supabase en un lugar
 
 import { supabase } from '@/lib/supabase';
-import { Category, Frequency, Profile, TaskInstance } from '@/lib/types';
+import {
+  Category,
+  Frequency,
+  Profile,
+  TaskInstance,
+  WeeklyRankingRow,
+  WorkSchedule,
+} from '@/lib/types';
 
 // Joins habituales de una instancia (la tabla referencia profiles dos
 // veces, por eso los hints de FK explícitos)
@@ -139,6 +146,85 @@ export async function createTask(input: NewTask): Promise<void> {
     p_task_id: task.id,
   });
   if (genError) throw genError;
+}
+
+// ------------------------------------------------------------
+// Perfil, horarios laborales y ranking
+// ------------------------------------------------------------
+export async function updateProfile(
+  id: string,
+  patch: { name?: string; color?: string }
+): Promise<void> {
+  const { error } = await supabase.from('profiles').update(patch).eq('id', id);
+  if (error) throw error;
+}
+
+export interface ScheduleWithProfile extends WorkSchedule {
+  profile: { id: string; name: string; color: string };
+}
+
+export async function fetchHouseholdSchedules(
+  householdId: string
+): Promise<ScheduleWithProfile[]> {
+  const { data, error } = await supabase
+    .from('work_schedules')
+    .select('*, profile:profiles!inner(id, name, color, household_id)')
+    .eq('profile.household_id', householdId)
+    .order('weekday')
+    .order('start_time');
+  if (error) throw error;
+  return data as unknown as ScheduleWithProfile[];
+}
+
+export async function fetchMySchedules(profileId: string): Promise<WorkSchedule[]> {
+  const { data, error } = await supabase
+    .from('work_schedules')
+    .select('*')
+    .eq('profile_id', profileId)
+    .order('weekday')
+    .order('start_time');
+  if (error) throw error;
+  return data as WorkSchedule[];
+}
+
+export async function addSchedule(
+  profileId: string,
+  weekday: number,
+  startTime: string,
+  endTime: string
+): Promise<void> {
+  const { error } = await supabase.from('work_schedules').insert({
+    profile_id: profileId,
+    weekday,
+    start_time: startTime,
+    end_time: endTime,
+  });
+  if (error) throw error;
+}
+
+export async function deleteSchedule(id: string): Promise<void> {
+  const { error } = await supabase.from('work_schedules').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function fetchWeeklyRanking(householdId: string): Promise<WeeklyRankingRow[]> {
+  const { data, error } = await supabase
+    .from('weekly_ranking')
+    .select('*')
+    .eq('household_id', householdId)
+    .order('total_points', { ascending: false });
+  if (error) throw error;
+  return data as WeeklyRankingRow[];
+}
+
+export async function fetchHousehold(householdId: string) {
+  const { data, error } = await supabase
+    .from('households')
+    .select('*')
+    .eq('id', householdId)
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 // ------------------------------------------------------------
