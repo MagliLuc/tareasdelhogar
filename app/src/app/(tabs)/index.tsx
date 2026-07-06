@@ -18,6 +18,7 @@ import {
   startOfDayISO,
   uncompleteInstance,
 } from '@/lib/api';
+import { scheduleLocalReminders } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { spacing } from '@/lib/theme';
 import { TaskInstance } from '@/lib/types';
@@ -48,6 +49,8 @@ export default function TodayScreen() {
         endOfDayISO(new Date())
       );
       setInstances(data);
+      // Recordatorios locales para mis tareas de hoy (60 min antes)
+      scheduleLocalReminders(data, profile.id);
     } catch {
       setError('No pudimos cargar tus tareas. Deslizá hacia abajo para reintentar.');
     }

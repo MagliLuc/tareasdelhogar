@@ -102,3 +102,12 @@ app/src/
 3. Escaneá el QR que aparece en la terminal (con Expo Go en Android, o con la cámara en iPhone). El celular y la PC tienen que estar en la **misma red WiFi**.
 
 > Para desarrollo, desactivá la confirmación de email en Supabase: *Authentication → Sign In / Providers → Email → Confirm email* en OFF. Si no, cada registro queda esperando el mail de confirmación.
+
+## Notificaciones
+
+Dos vías, ambas gratuitas:
+
+- **Recordatorios locales** (funcionan ya, incluso en Expo Go): la app programa un aviso 60 minutos antes del vencimiento de tus tareas del día.
+- **Push remotas** (asignaciones, reasignaciones, completadas y recordatorios server-side): las envía la propia base de datos con `pg_net` + `pg_cron` (migración `0006_notifications.sql`) llamando a la API de push de Expo. No requieren servidor propio.
+
+> ⚠️ Desde el SDK 53, **Expo Go en Android no recibe push remotas**. Para probarlas hace falta un *development build* (ver sección de compilación) y un proyecto EAS (`npx eas init`), que agrega el `projectId` que la app usa para obtener el token. Sin eso, la app simplemente no registra el token y sigue funcionando con recordatorios locales.
