@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
 import { Redirect, router, Tabs } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
-import { registerForPushNotifications } from '@/lib/notifications';
+import { addNotificationTapListener, registerForPushNotifications } from '@/lib/notifications';
 import { useAuth } from '@/providers/auth-provider';
 import { useTheme } from '@/providers/settings-provider';
 
@@ -21,13 +20,9 @@ export default function TabsLayout() {
 
   // Al tocar una notificación, abrir el detalle de la tarea
   useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const instanceId = response.notification.request.content.data?.instanceId;
-      if (typeof instanceId === 'string') {
-        router.push(`/task/${instanceId}`);
-      }
+    return addNotificationTapListener((instanceId) => {
+      router.push(`/task/${instanceId}`);
     });
-    return () => sub.remove();
   }, []);
 
   if (loading) {
