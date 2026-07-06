@@ -103,6 +103,37 @@ app/src/
 
 > Para desarrollo, desactivá la confirmación de email en Supabase: *Authentication → Sign In / Providers → Email → Confirm email* en OFF. Si no, cada registro queda esperando el mail de confirmación.
 
+## Compilar la app (APK para Android)
+
+La compilación corre gratis en la nube de Expo (EAS Build, plan free con cupo mensual). Una sola vez:
+
+1. Creá una cuenta gratuita en [expo.dev](https://expo.dev/signup).
+2. En una terminal, dentro de `app/`:
+   ```bash
+   npx eas-cli login          # usuario y contraseña de expo.dev
+   npx eas-cli init           # crea el proyecto EAS y agrega el projectId a app.json
+   git add app.json && git commit -m "EAS projectId"
+   ```
+3. Compilar el APK:
+   ```bash
+   npx eas-cli build -p android --profile preview
+   ```
+   - La primera vez pregunta si genera el **keystore** (la firma de la app): respondé **Yes** — Expo lo guarda por vos.
+   - La compilación tarda 10–25 minutos (hay cola en el plan gratuito). Al terminar muestra un **link y un QR**.
+4. En cada celular: abrir el link (o escanear el QR), descargar el APK y abrirlo. Android va a pedir permiso para "instalar apps desconocidas" — aceptar. ¡Listo, la app instalada sin Expo Go!
+
+Para actualizar la app más adelante: repetir solo el paso 3 e instalar el nuevo APK encima (misma firma, no se pierde nada).
+
+### Notificaciones en el APK
+
+- Los **recordatorios locales** (60 min antes del vencimiento) funcionan apenas instalás el APK.
+- Las **push remotas** en Android requieren además credenciales de Firebase (FCM): crear un proyecto en [console.firebase.google.com](https://console.firebase.google.com), agregar una app Android con el paquete `com.maglilluc.tareasdelhogar`, descargar `google-services.json` a `app/`, referenciarlo en `app.json` (`expo.android.googleServicesFile`) y subir la clave de servicio con `npx eas-cli credentials`. Es gratis; se puede hacer en cualquier momento después.
+
+### ¿Y para iPhone?
+
+- **Probar**: con Expo Go en el iPhone alcanza (mismo QR de `npx expo start`).
+- **Instalar como app propia / App Store**: requiere una cuenta de Apple Developer (US$ 99/año). Con eso: `npx eas-cli build -p ios` y `npx eas-cli submit -p ios` para TestFlight/App Store. También es obligatorio ahí ofrecer "Iniciar sesión con Apple" si se agrega login social.
+
 ## Notificaciones
 
 Dos vías, ambas gratuitas:
