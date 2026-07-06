@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TaskCard } from '@/components/task-card';
+import { Button } from '@/components/ui';
 import {
   completeInstance,
   endOfDayISO,
@@ -105,11 +106,20 @@ export default function TodayScreen() {
       >
         ¡Hola, {profile?.name}! 👋
       </Text>
-      <Text style={{ fontSize: ts(15), color: colors.textMuted, marginBottom: spacing.lg }}>
+      <Text style={{ fontSize: ts(15), color: colors.textMuted, marginBottom: spacing.md }}>
         {pending.length === 0
           ? 'No tenés tareas pendientes. ¡Bien ahí! 🎉'
           : `Tenés ${pending.length} ${pending.length === 1 ? 'tarea pendiente' : 'tareas pendientes'}`}
       </Text>
+
+      <View style={{ marginBottom: spacing.md }}>
+        <Button
+          title="🛒 Lista de compras"
+          variant="secondary"
+          onPress={() => router.push('/shopping')}
+          accessibilityHint="Abre la lista de compras compartida del hogar"
+        />
+      </View>
 
       {!!error && (
         <Text

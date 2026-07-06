@@ -11,7 +11,8 @@ import {
   View,
 } from 'react-native';
 
-import { Button, ErrorText, Input } from '@/components/ui';
+import { Button, Chip, ErrorText, Input } from '@/components/ui';
+import { HouseholdPreview, joinHousehold, previewHousehold } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing } from '@/lib/theme';
 import { useAuth } from '@/providers/auth-provider';
@@ -23,6 +24,8 @@ export default function OnboardingScreen() {
   const [mode, setMode] = useState<Mode>('create');
   const [householdName, setHouseholdName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [preview, setPreview] = useState<HouseholdPreview | null>(null);
+  const [selectedIdentity, setSelectedIdentity] = useState<string | null>(null); // pending_member id o 'other'
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -51,28 +54,51 @@ export default function OnboardingScreen() {
     );
   }
 
-  async function handleJoin() {
+  async function handleSearch() {
     if (!inviteCode.trim()) {
       setError('Ingresá el código de invitación');
       return;
     }
     setError(null);
     setSubmitting(true);
-    const { data, error: rpcError } = await supabase
-      .rpc('join_household', { p_code: inviteCode.trim() })
-      .single<{ id: string; name: string }>();
-    setSubmitting(false);
-    if (rpcError) {
-      setError(
-        rpcError.message.includes('inválido')
-          ? 'Código inválido. Revisá que esté bien escrito.'
-          : rpcError.message
-      );
-      return;
+    try {
+      const found = await previewHousehold(inviteCode.trim());
+      if (!found) {
+        setError('Código inválido. Revisá que esté bien escrito.');
+        return;
+      }
+      if (found.pending.length === 0) {
+        // Sin identidades pendientes: unirse directo
+        await doJoin(null);
+        return;
+      }
+      setPreview(found);
+      setSelectedIdentity(null);
+    } catch {
+      setError('No pudimos buscar el hogar. Probá de nuevo.');
+    } finally {
+      setSubmitting(false);
     }
-    Alert.alert('¡Bienvenido! 👋', `Te sumaste a "${data.name}"`, [
-      { text: 'Vamos', onPress: () => refreshProfile() },
-    ]);
+  }
+
+  async function doJoin(pendingId: string | null) {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const joined = await joinHousehold(inviteCode.trim(), pendingId);
+      Alert.alert('¡Bienvenido! 👋', `Te sumaste a "${joined.name}"`, [
+        { text: 'Vamos', onPress: () => refreshProfile() },
+      ]);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : '';
+      setError(
+        message.includes('inválido')
+          ? 'Código inválido. Revisá que esté bien escrito.'
+          : 'No pudimos unirte al hogar. Probá de nuevo.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -114,6 +140,44 @@ export default function OnboardingScreen() {
             <ErrorText message={error} />
             <Button title="Crear mi hogar" onPress={handleCreate} loading={submitting} />
           </View>
+        ) : preview ? (
+          <View>
+            <Text style={styles.previewTitle}>
+              Encontramos el hogar &quot;{preview.household_name}&quot; 🏠
+            </Text>
+            <Text style={styles.previewSubtitle}>¿Quién sos?</Text>
+            <View style={styles.identityRow}>
+              {preview.pending.map((pm) => (
+                <Chip
+                  key={pm.id}
+                  label={pm.name}
+                  selected={selectedIdentity === pm.id}
+                  onPress={() => setSelectedIdentity(pm.id)}
+                />
+              ))}
+              <Chip
+                label="Soy otra persona"
+                selected={selectedIdentity === 'other'}
+                onPress={() => setSelectedIdentity('other')}
+              />
+            </View>
+            <ErrorText message={error} />
+            <Button
+              title="Unirme al hogar"
+              onPress={() => doJoin(selectedIdentity === 'other' ? null : selectedIdentity)}
+              loading={submitting}
+              disabled={!selectedIdentity}
+            />
+            <View style={{ height: spacing.sm }} />
+            <Button
+              title="Volver"
+              variant="secondary"
+              onPress={() => {
+                setPreview(null);
+                setSelectedIdentity(null);
+              }}
+            />
+          </View>
         ) : (
           <View>
             <Input
@@ -125,7 +189,7 @@ export default function OnboardingScreen() {
               maxLength={6}
             />
             <ErrorText message={error} />
-            <Button title="Unirme al hogar" onPress={handleJoin} loading={submitting} />
+            <Button title="Buscar hogar" onPress={handleSearch} loading={submitting} />
           </View>
         )}
 
@@ -175,4 +239,23 @@ const styles = StyleSheet.create({
   toggleTextActive: { color: colors.primary },
   signOut: { marginTop: spacing.xl, alignItems: 'center' },
   signOutText: { color: colors.textMuted, fontSize: 14 },
+  previewTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  previewSubtitle: {
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  identityRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
 });

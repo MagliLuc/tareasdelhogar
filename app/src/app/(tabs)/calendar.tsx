@@ -112,7 +112,10 @@ export default function CalendarScreen() {
   const dayInstances = instances.filter(
     (i) => toDateString(new Date(i.due_at)) === selectedDate
   );
-  const daySchedules = schedules.filter((s) => s.weekday === selectedIsoDow);
+  // Semanales de ese día de la semana + salidas puntuales de esa fecha
+  const daySchedules = schedules.filter(
+    (s) => (s.date === null && s.weekday === selectedIsoDow) || s.date === selectedDate
+  );
 
   return (
     <ScrollView
@@ -154,36 +157,43 @@ export default function CalendarScreen() {
         </Text>
       )}
 
-      {/* Horarios laborales del día: explican el reparto */}
+      {/* Quién no está y cuándo: explica el reparto */}
       <Text
         accessibilityRole="header"
         style={{ fontSize: ts(16), fontWeight: '700', color: colors.textMuted, marginBottom: spacing.sm }}
       >
-        Horarios de trabajo — {humanDay(selected)}
+        Quién no está — {humanDay(selected)}
       </Text>
       {daySchedules.length === 0 ? (
         <Text style={{ fontSize: ts(14), color: colors.textMuted, marginBottom: spacing.md }}>
-          Nadie cargó horario laboral para este día.
+          Nadie cargó horarios ni salidas para este día: están todos disponibles.
         </Text>
       ) : (
         <View style={{ marginBottom: spacing.md }}>
-          {daySchedules.map((s) => (
-            <View
-              key={s.id}
-              accessible
-              accessibilityLabel={`${s.profile.name} trabaja de ${hhmm(s.start_time)} a ${hhmm(s.end_time)}`}
-              style={[
-                styles.scheduleRow,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <View style={[styles.dot, { backgroundColor: s.profile.color }]} />
-              <Text style={{ fontSize: ts(14), color: colors.text, flex: 1 }}>
-                <Text style={{ fontWeight: '700' }}>{s.profile.name}</Text> trabaja{' '}
-                {hhmm(s.start_time)}–{hhmm(s.end_time)}
-              </Text>
-            </View>
-          ))}
+          {daySchedules.map((s) => {
+            const verb =
+              s.kind === 'work' ? 'trabaja' : s.kind === 'study' ? 'estudia' : 'está afuera';
+            const icon = s.kind === 'work' ? '💼' : s.kind === 'study' ? '📚' : '🚶';
+            const allDay = hhmm(s.start_time) === '00:00' && hhmm(s.end_time) === '23:59';
+            const range = allDay ? 'todo el día' : `${hhmm(s.start_time)}–${hhmm(s.end_time)}`;
+            return (
+              <View
+                key={s.id}
+                accessible
+                accessibilityLabel={`${s.profile.name} ${verb} ${range}`}
+                style={[
+                  styles.scheduleRow,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                <View style={[styles.dot, { backgroundColor: s.profile.color }]} />
+                <Text style={{ fontSize: ts(14), color: colors.text, flex: 1 }}>
+                  <Text style={{ fontWeight: '700' }}>{s.profile.name}</Text> {icon} {verb}{' '}
+                  {range}
+                </Text>
+              </View>
+            );
+          })}
         </View>
       )}
 

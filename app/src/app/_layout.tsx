@@ -16,6 +16,7 @@ export default function RootLayout() {
           <Stack.Screen name="task/new" options={{ presentation: 'modal' }} />
           <Stack.Screen name="task/[id]" options={{ presentation: 'card' }} />
           <Stack.Screen name="schedule" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="shopping" options={{ presentation: 'card' }} />
         </Stack>
       </AuthProvider>
     </SettingsProvider>

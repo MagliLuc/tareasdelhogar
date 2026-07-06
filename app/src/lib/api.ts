@@ -4,7 +4,10 @@ import { supabase } from '@/lib/supabase';
 import {
   Category,
   Frequency,
+  PendingMember,
   Profile,
+  ScheduleKind,
+  ShoppingItem,
   TaskInstance,
   WeeklyRankingRow,
   WorkSchedule,
@@ -187,17 +190,21 @@ export async function fetchMySchedules(profileId: string): Promise<WorkSchedule[
   return data as WorkSchedule[];
 }
 
-export async function addSchedule(
-  profileId: string,
-  weekday: number,
-  startTime: string,
-  endTime: string
-): Promise<void> {
+export async function addSchedule(input: {
+  profileId: string;
+  kind: ScheduleKind;
+  weekday?: number | null; // recurrente semanal
+  date?: string | null; // salida puntual 'YYYY-MM-DD'
+  startTime: string;
+  endTime: string;
+}): Promise<void> {
   const { error } = await supabase.from('work_schedules').insert({
-    profile_id: profileId,
-    weekday,
-    start_time: startTime,
-    end_time: endTime,
+    profile_id: input.profileId,
+    kind: input.kind,
+    weekday: input.weekday ?? null,
+    date: input.date ?? null,
+    start_time: input.startTime,
+    end_time: input.endTime,
   });
   if (error) throw error;
 }
@@ -215,6 +222,99 @@ export async function fetchWeeklyRanking(householdId: string): Promise<WeeklyRan
     .order('total_points', { ascending: false });
   if (error) throw error;
   return data as WeeklyRankingRow[];
+}
+
+// ------------------------------------------------------------
+// Miembros pendientes y unirse con identidad
+// ------------------------------------------------------------
+export interface HouseholdPreview {
+  household_name: string;
+  pending: { id: string; name: string; color: string }[];
+}
+
+export async function previewHousehold(code: string): Promise<HouseholdPreview | null> {
+  const { data, error } = await supabase
+    .rpc('preview_household', { p_code: code })
+    .maybeSingle<HouseholdPreview>();
+  if (error) throw error;
+  return data;
+}
+
+export async function joinHousehold(
+  code: string,
+  pendingMemberId: string | null
+): Promise<{ id: string; name: string }> {
+  const { data, error } = await supabase
+    .rpc('join_household', { p_code: code, p_pending_member: pendingMemberId })
+    .single<{ id: string; name: string }>();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchPendingMembers(householdId: string): Promise<PendingMember[]> {
+  const { data, error } = await supabase
+    .from('pending_members')
+    .select('*')
+    .eq('household_id', householdId)
+    .is('claimed_at', null)
+    .order('name');
+  if (error) throw error;
+  return data as PendingMember[];
+}
+
+export async function addPendingMember(
+  householdId: string,
+  name: string,
+  color: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('pending_members')
+    .insert({ household_id: householdId, name, color });
+  if (error) throw error;
+}
+
+export async function seedSampleTasks(): Promise<number> {
+  const { data, error } = await supabase.rpc('seed_sample_tasks');
+  if (error) throw error;
+  return data as number;
+}
+
+// ------------------------------------------------------------
+// Lista de compras
+// ------------------------------------------------------------
+export async function fetchShoppingItems(householdId: string): Promise<ShoppingItem[]> {
+  const { data, error } = await supabase
+    .from('shopping_items')
+    .select('*')
+    .eq('household_id', householdId)
+    .order('done')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data as ShoppingItem[];
+}
+
+export async function addShoppingItem(
+  householdId: string,
+  name: string,
+  addedBy: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('shopping_items')
+    .insert({ household_id: householdId, name, added_by: addedBy });
+  if (error) throw error;
+}
+
+export async function toggleShoppingItem(item: ShoppingItem, byProfileId: string): Promise<void> {
+  const { error } = await supabase
+    .from('shopping_items')
+    .update({ done: !item.done, done_by: item.done ? null : byProfileId })
+    .eq('id', item.id);
+  if (error) throw error;
+}
+
+export async function deleteShoppingItem(id: string): Promise<void> {
+  const { error } = await supabase.from('shopping_items').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function fetchHousehold(householdId: string) {
