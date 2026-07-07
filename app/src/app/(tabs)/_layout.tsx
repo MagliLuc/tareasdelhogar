@@ -3,6 +3,7 @@ import { Redirect, router, Tabs } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import { UpdateBanner } from '@/components/update-banner';
 import { addNotificationTapListener, registerForPushNotifications } from '@/lib/notifications';
 import { useAuth } from '@/providers/auth-provider';
 import { useTheme } from '@/providers/settings-provider';
@@ -38,6 +39,8 @@ export default function TabsLayout() {
   if (profile && !profile.household_id) return <Redirect href="/onboarding" />;
 
   return (
+    <View style={{ flex: 1 }}>
+      <UpdateBanner />
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
@@ -83,5 +86,6 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    </View>
   );
 }
