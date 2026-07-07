@@ -3,7 +3,7 @@
 export type Role = 'adult' | 'child';
 export type Frequency = 'once' | 'daily' | 'weekly' | 'every_x_days';
 export type AssignmentType = 'manual' | 'rotative';
-export type InstanceStatus = 'pending' | 'done';
+export type InstanceStatus = 'pending' | 'done' | 'cancelled';
 
 export interface Household {
   id: string;

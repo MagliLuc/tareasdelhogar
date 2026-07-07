@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Chip, ErrorText } from '@/components/ui';
 import {
+  cancelInstance,
   completeInstance,
   fetchInstance,
   fetchInstanceEvents,
@@ -38,6 +40,8 @@ function eventLabel(e: InstanceEvent): string {
       return `✅ Completada por ${e.actor?.name ?? 'alguien'} — ${when}`;
     case 'uncompleted':
       return `↩️ ${e.actor?.name ?? 'Alguien'} la desmarcó — ${when}`;
+    case 'cancelled':
+      return `🚫 Cancelada por ${e.actor?.name ?? 'alguien'} — ${when}`;
     default:
       return `Creada — ${when}`;
   }
@@ -124,7 +128,35 @@ export default function TaskDetailScreen() {
 
   const task = instance.task;
   const done = instance.status === 'done';
-  const overdue = !done && new Date(instance.due_at) < new Date();
+  const cancelled = instance.status === 'cancelled';
+  const overdue = !done && !cancelled && new Date(instance.due_at) < new Date();
+  const canComplete = instance.assigned_to == null || instance.assigned_to === profile?.id;
+
+  function confirmCancel() {
+    Alert.alert(
+      '¿Cancelar esta tarea?',
+      'Vale solo por esta vez (ej: hoy no se cocina). No suma puntos y queda en el historial. Las próximas ocurrencias siguen normales.',
+      [
+        { text: 'No, volver', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await cancelInstance(instance!.id);
+              AccessibilityInfo.announceForAccessibility('Tarea cancelada');
+              await load();
+            } catch {
+              setError('No se pudo cancelar. Probá de nuevo.');
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }
 
   return (
     <ScrollView
@@ -144,8 +176,13 @@ export default function TaskDetailScreen() {
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={{ fontSize: ts(15), color: colors.text }}>
           Estado:{' '}
-          <Text style={{ fontWeight: '700', color: done ? colors.success : overdue ? colors.danger : colors.text }}>
-            {done ? '✅ Completada' : overdue ? '⚠ Atrasada' : '⏳ Pendiente'}
+          <Text
+            style={{
+              fontWeight: '700',
+              color: done ? colors.success : overdue ? colors.danger : cancelled ? colors.textMuted : colors.text,
+            }}
+          >
+            {cancelled ? '🚫 Cancelada' : done ? '✅ Completada' : overdue ? '⚠ Atrasada' : '⏳ Pendiente'}
           </Text>
         </Text>
         <Text style={{ fontSize: ts(15), color: colors.text, marginTop: spacing.xs }}>
@@ -166,15 +203,37 @@ export default function TaskDetailScreen() {
 
       <ErrorText message={error} />
 
-      <Button
-        title={done ? 'Desmarcar (no estaba lista)' : '✓ Marcar como completada'}
-        onPress={handleToggleComplete}
-        loading={busy && !reassigning}
-        variant={done ? 'secondary' : 'primary'}
-      />
+      {overdue && canComplete && (
+        <Text style={{ fontSize: ts(13), color: colors.danger, marginBottom: spacing.sm }}>
+          ⚠ Está vencida: al completarla se acreditan menos puntos (regla del hogar).
+        </Text>
+      )}
+
+      {!cancelled &&
+        (canComplete || done ? (
+          <Button
+            title={done ? 'Desmarcar (no estaba lista)' : '✓ Marcar como completada'}
+            onPress={handleToggleComplete}
+            loading={busy && !reassigning}
+            variant={done ? 'secondary' : 'primary'}
+          />
+        ) : (
+          <Text
+            style={{
+              fontSize: ts(14),
+              color: colors.textMuted,
+              textAlign: 'center',
+              marginBottom: spacing.xs,
+            }}
+          >
+            🔒 Solo {instance.assignee?.name ?? 'su asignado'} puede completarla. Si la vas a
+            hacer vos, pedile que te la pase (o pasátela desde &quot;Pasar a otro miembro&quot;).
+          </Text>
+        ))}
       <View style={{ height: spacing.sm }} />
 
       {!done &&
+        !cancelled &&
         (reassigning ? (
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={{ fontSize: ts(15), fontWeight: '700', color: colors.text, marginBottom: spacing.sm }}>
@@ -203,6 +262,13 @@ export default function TaskDetailScreen() {
               variant="secondary"
               onPress={() => router.push(`/task/edit/${instance.task_id}`)}
               accessibilityHint="Edita título, horario, frecuencia y asignación de la tarea"
+            />
+            <View style={{ height: spacing.sm }} />
+            <Button
+              title="🚫 Cancelar por esta vez"
+              variant="danger"
+              onPress={confirmCancel}
+              accessibilityHint="Cancela solo esta ocurrencia, con confirmación"
             />
           </>
         ))}

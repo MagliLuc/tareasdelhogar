@@ -38,6 +38,12 @@ const RULES: Rule[] = [
     defaultValue: 1,
   },
   {
+    key: 'late_points_percent',
+    label: 'Puntos si se completa vencida (%)',
+    help: 'Porcentaje de los puntos que se acreditan al completar una tarea después de su vencimiento. 100 = sin penalidad, 0 = no suma nada.',
+    defaultValue: 50,
+  },
+  {
     key: 'reminder_minutes_before',
     label: 'Recordatorio antes del vencimiento (minutos)',
     help: 'Cuánto antes avisar que una tarea está por vencer.',

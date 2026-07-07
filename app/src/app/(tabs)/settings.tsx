@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React from 'react';
+import * as Updates from 'expo-updates';
+import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -53,6 +54,34 @@ export default function SettingsMenuScreen() {
   const { colors, ts } = useTheme();
   const { profile, signOut } = useAuth();
   const insets = useSafeAreaInsets();
+  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  async function checkForUpdates() {
+    if (!Updates.isEnabled) {
+      setUpdateStatus(
+        'No disponible en esta versión (Expo Go o web). La web se actualiza sola.'
+      );
+      return;
+    }
+    setChecking(true);
+    setUpdateStatus('Buscando actualizaciones…');
+    try {
+      const result = await Updates.checkForUpdateAsync();
+      if (result.isAvailable) {
+        setUpdateStatus('¡Hay una versión nueva! Descargando…');
+        await Updates.fetchUpdateAsync();
+        setUpdateStatus('Aplicando…');
+        await Updates.reloadAsync();
+      } else {
+        setUpdateStatus('✅ Ya tenés la última versión.');
+      }
+    } catch {
+      setUpdateStatus('No se pudo verificar. Revisá tu conexión e intentá de nuevo.');
+    } finally {
+      setChecking(false);
+    }
+  }
 
   return (
     <ScrollView
@@ -91,6 +120,25 @@ export default function SettingsMenuScreen() {
           <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
         </Pressable>
       ))}
+
+      {/* Buscar actualizaciones */}
+      <View style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Ionicons name="cloud-download" size={26} color={colors.primary} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: ts(16), fontWeight: '700', color: colors.text }}>
+            Actualizaciones
+          </Text>
+          {!!updateStatus && (
+            <Text
+              accessibilityLiveRegion="polite"
+              style={{ fontSize: ts(13), color: colors.textMuted }}
+            >
+              {updateStatus}
+            </Text>
+          )}
+        </View>
+        <Button title="Buscar" onPress={checkForUpdates} loading={checking} />
+      </View>
 
       <View style={{ marginTop: spacing.lg }}>
         <Button title="Cerrar sesión" variant="secondary" onPress={signOut} />

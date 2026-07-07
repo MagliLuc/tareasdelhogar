@@ -214,6 +214,7 @@ export default function CalendarScreen() {
             key={instance.id}
             instance={instance}
             showAssignee
+            canComplete={instance.assigned_to === profile?.id || instance.assigned_to == null}
             onPress={() => router.push(`/task/${instance.id}`)}
             onToggleComplete={() => toggleComplete(instance)}
           />

@@ -12,6 +12,8 @@ interface TaskCardProps {
   onPress: () => void;
   onToggleComplete: () => void;
   showAssignee?: boolean;
+  /** false cuando la tarea es de otro: el casillero queda bloqueado */
+  canComplete?: boolean;
 }
 
 export function TaskCard({
@@ -19,10 +21,12 @@ export function TaskCard({
   onPress,
   onToggleComplete,
   showAssignee = false,
+  canComplete = true,
 }: TaskCardProps) {
   const { colors, ts } = useTheme();
   const done = instance.status === 'done';
-  const overdue = !done && new Date(instance.due_at) < new Date();
+  const cancelled = instance.status === 'cancelled';
+  const overdue = !done && !cancelled && new Date(instance.due_at) < new Date();
   const title = instance.task?.title ?? 'Tarea';
   const icon = instance.task?.category?.icon ?? '📌';
   const points = instance.task?.points ?? 0;
@@ -30,9 +34,16 @@ export function TaskCard({
   // Todo el estado en una sola frase para el lector de pantalla
   const a11yLabel = [
     title,
-    done ? 'completada' : overdue ? 'atrasada' : `vence a las ${humanTime(instance.due_at)}`,
+    cancelled
+      ? 'cancelada'
+      : done
+        ? 'completada'
+        : overdue
+          ? 'atrasada'
+          : `vence a las ${humanTime(instance.due_at)}`,
     showAssignee && instance.assignee ? `asignada a ${instance.assignee.name}` : null,
-    `vale ${points} puntos`,
+    !cancelled ? `vale ${points} puntos` : null,
+    !canComplete && !done && !cancelled ? 'solo puede completarla su asignado' : null,
   ]
     .filter(Boolean)
     .join(', ');
@@ -54,20 +65,31 @@ export function TaskCard({
       ]}
     >
       <Pressable
-        onPress={onToggleComplete}
+        onPress={canComplete && !cancelled ? onToggleComplete : undefined}
+        disabled={!canComplete || cancelled}
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: done }}
-        accessibilityLabel={done ? `Desmarcar ${title}` : `Marcar ${title} como completada`}
+        accessibilityState={{ checked: done, disabled: !canComplete || cancelled }}
+        accessibilityLabel={
+          cancelled
+            ? `${title} está cancelada`
+            : !canComplete
+              ? `${title}: solo puede completarla su asignado`
+              : done
+                ? `Desmarcar ${title}`
+                : `Marcar ${title} como completada`
+        }
         hitSlop={8}
         style={[
           styles.checkbox,
           {
             borderColor: done ? colors.success : colors.border,
             backgroundColor: done ? colors.success : 'transparent',
+            opacity: !canComplete || cancelled ? 0.35 : 1,
           },
         ]}
       >
         {done && <Ionicons name="checkmark" size={22} color="#fff" />}
+        {cancelled && <Ionicons name="close" size={22} color={colors.textMuted} />}
       </Pressable>
 
       <View style={styles.body}>
@@ -75,14 +97,18 @@ export function TaskCard({
           style={{
             fontSize: ts(16),
             fontWeight: '700',
-            color: colors.text,
-            textDecorationLine: done ? 'line-through' : 'none',
+            color: cancelled ? colors.textMuted : colors.text,
+            textDecorationLine: done || cancelled ? 'line-through' : 'none',
           }}
         >
           {icon} {title}
         </Text>
         <View style={styles.metaRow}>
-          {overdue ? (
+          {cancelled ? (
+            <Text style={{ fontSize: ts(13), color: colors.textMuted, fontWeight: '700' }}>
+              🚫 Cancelada
+            </Text>
+          ) : overdue ? (
             <Text style={{ fontSize: ts(13), color: colors.danger, fontWeight: '700' }}>
               ⚠ Atrasada
             </Text>

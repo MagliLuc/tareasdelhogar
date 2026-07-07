@@ -70,7 +70,7 @@ export async function fetchInstance(id: string): Promise<TaskInstance> {
 
 export interface InstanceEvent {
   id: string;
-  type: 'created' | 'assigned' | 'reassigned' | 'completed' | 'uncompleted';
+  type: 'created' | 'assigned' | 'reassigned' | 'completed' | 'uncompleted' | 'cancelled';
   created_at: string;
   actor: { name: string } | null;
   from_p: { name: string } | null;
@@ -99,6 +99,11 @@ export async function completeInstance(id: string): Promise<void> {
 
 export async function uncompleteInstance(id: string): Promise<void> {
   const { error } = await supabase.rpc('uncomplete_task_instance', { p_instance_id: id });
+  if (error) throw error;
+}
+
+export async function cancelInstance(id: string): Promise<void> {
+  const { error } = await supabase.rpc('cancel_task_instance', { p_instance_id: id });
   if (error) throw error;
 }
 
