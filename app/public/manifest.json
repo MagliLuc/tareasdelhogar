@@ -1,0 +1,24 @@
+{
+  "name": "Tareas del Hogar",
+  "short_name": "Tareas",
+  "description": "Organizá las tareas del hogar en familia",
+  "start_url": "/tareasdelhogar/",
+  "scope": "/tareasdelhogar/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8FAFC",
+  "theme_color": "#4F46E5",
+  "icons": [
+    {
+      "src": "/tareasdelhogar/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/tareasdelhogar/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

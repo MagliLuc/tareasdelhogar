@@ -1,0 +1,64 @@
+name: Desplegar app web (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: https://bvfayigcaaixhrruoqqh.supabase.co
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2ZmF5aWdjYWFpeGhycnVvcXFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNzU5MzMsImV4cCI6MjA5ODg1MTkzM30.JjFCQOPdi1UiYULUhJBUEBUhYF6bHX7kZ0oG7IIKCMI
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Exportar la app web
+        run: npx expo export --platform web
+
+      - name: Etiquetas PWA para iPhone (manifest + ícono + pantalla completa)
+        run: |
+          sed -i 's|</head>|<link rel="manifest" href="/tareasdelhogar/manifest.json"/><link rel="apple-touch-icon" href="/tareasdelhogar/icon-180.png"/><meta name="apple-mobile-web-app-capable" content="yes"/><meta name="mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-status-bar-style" content="default"/><meta name="apple-mobile-web-app-title" content="Tareas"/><meta name="theme-color" content="#4F46E5"/></head>|' dist/index.html
+
+      - name: Fallback SPA (rutas profundas)
+        run: cp dist/index.html dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
