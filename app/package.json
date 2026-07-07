@@ -39,7 +39,7 @@
   },
   "scripts": {
     "start": "expo start",
-    "ota": "eas update --branch preview",
+    "ota": "npx eas-cli update --branch preview",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
