@@ -33,3 +33,7 @@ Thumbs.db
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+
+# Supabase secrets locales (NUNCA subir)
+.env
+supabase/.env

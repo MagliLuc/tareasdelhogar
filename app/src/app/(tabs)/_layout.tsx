@@ -3,6 +3,7 @@ import { Redirect, router, Tabs } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import { AIAssistant } from '@/components/ai-assistant';
 import { UpdateBanner } from '@/components/update-banner';
 import { addNotificationTapListener, registerForPushNotifications } from '@/lib/notifications';
 import { useAuth } from '@/providers/auth-provider';
@@ -86,6 +87,7 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+      <AIAssistant />
     </View>
   );
 }

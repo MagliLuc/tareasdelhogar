@@ -207,7 +207,7 @@ export default function TasksScreen() {
         accessibilityLabel="Crear tarea nueva"
         style={[
           styles.fab,
-          { backgroundColor: colors.primary, bottom: spacing.lg + insets.bottom },
+          { backgroundColor: colors.primary, bottom: 150 + insets.bottom },
         ]}
       >
         <Ionicons name="add" size={32} color="#fff" />
