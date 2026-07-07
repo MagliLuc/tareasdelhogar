@@ -3,7 +3,7 @@ import React, { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { fetchWeeklyRanking } from '@/lib/api';
+import { fetchWeeklyRanking, settleObligationPoints } from '@/lib/api';
 import { spacing } from '@/lib/theme';
 import { WeeklyRankingRow } from '@/lib/types';
 import { useRealtimeInstances } from '@/hooks/use-realtime-instances';
@@ -25,6 +25,9 @@ export default function RankingScreen() {
     if (!profile?.household_id) return;
     try {
       setError(null);
+      // Liquida los puntos de trabajo/estudio de los últimos días
+      // (idempotente: si el cron ya los acreditó, no duplica)
+      await settleObligationPoints(7).catch(() => {});
       setRows(await fetchWeeklyRanking(profile.household_id));
     } catch {
       setError('No pudimos cargar el ranking. Deslizá hacia abajo para reintentar.');

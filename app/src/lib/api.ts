@@ -411,6 +411,19 @@ export async function deleteShoppingItem(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function updateHouseholdSettings(
+  settings: Record<string, number>
+): Promise<void> {
+  const { error } = await supabase.rpc('update_household_settings', { p_settings: settings });
+  if (error) throw error;
+}
+
+/** Liquida puntos de trabajo/estudio de los últimos días (idempotente) */
+export async function settleObligationPoints(daysBack = 7): Promise<void> {
+  const { error } = await supabase.rpc('award_schedule_points', { p_days_back: daysBack });
+  if (error) throw error;
+}
+
 export async function fetchHousehold(householdId: string) {
   const { data, error } = await supabase
     .from('households')

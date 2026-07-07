@@ -124,6 +124,24 @@ La compilación corre gratis en la nube de Expo (EAS Build, plan free con cupo m
 
 Para actualizar la app más adelante: repetir solo el paso 3 e instalar el nuevo APK encima (misma firma, no se pierde nada).
 
+### Actualizaciones sin recompilar (EAS Update)
+
+Con EAS Update configurado (perfil `preview` → canal `preview`), los cambios de JavaScript llegan a los APK ya instalados **sin generar uno nuevo**:
+
+```bash
+cd app
+npm run ota      # publica la actualización (pide estar logueado en eas)
+```
+
+Los celulares la descargan al abrir la app (se aplica al segundo arranque). Solo hace falta recompilar el APK cuando se agregan **librerías nativas nuevas** o cambia la versión de Expo.
+
+## Seguridad
+
+- **Row Level Security en todas las tablas**: cada usuario solo puede leer/escribir datos de su propio hogar; la `anon key` pública no da acceso a nada sin autenticarse.
+- **Los puntos solo los otorga el servidor** (funciones/triggers): nadie puede regalarse puntos.
+- **RPCs revocadas para el rol anónimo** (migración 0009) y funciones internas (push/cron) inaccesibles desde la API.
+- Recomendado en el dashboard de Supabase: *Authentication → Attack Protection* → activar **leaked password protection**; y cuando la app esté estable, reactivar **Confirm email**.
+
 ### Notificaciones en el APK
 
 - Los **recordatorios locales** (60 min antes del vencimiento) funcionan apenas instalás el APK.

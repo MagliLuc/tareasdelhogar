@@ -10,6 +10,7 @@ export interface Household {
   name: string;
   invite_code: string;
   timezone: string;
+  settings: Record<string, number> | null;
 }
 
 export interface Profile {
