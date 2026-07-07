@@ -204,6 +204,22 @@ export async function fetchTaskChains(taskId: string): Promise<string[]> {
 }
 
 /**
+ * Elimina una tarea: la desactiva (el historial de completadas se
+ * conserva) y borra sus ocurrencias pendientes.
+ */
+export async function deleteTask(taskId: string): Promise<void> {
+  const { error: instError } = await supabase
+    .from('task_instances')
+    .delete()
+    .eq('task_id', taskId)
+    .eq('status', 'pending');
+  if (instError) throw instError;
+
+  const { error } = await supabase.from('tasks').update({ active: false }).eq('id', taskId);
+  if (error) throw error;
+}
+
+/**
  * Actualiza la definición de una tarea: reemplaza rotación y cadenas,
  * borra las ocurrencias PENDIENTES (las completadas quedan en el
  * historial) y regenera con la nueva configuración.

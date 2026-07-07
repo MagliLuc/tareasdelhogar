@@ -1,9 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Alert, View } from 'react-native';
 
 import { TaskForm, TaskFormResult } from '@/components/task-form';
-import { fetchTask, fetchTaskChains, fetchTaskRotation, updateTask } from '@/lib/api';
+import { Button } from '@/components/ui';
+import { deleteTask, fetchTask, fetchTaskChains, fetchTaskRotation, updateTask } from '@/lib/api';
+import { spacing } from '@/lib/theme';
 import { Task } from '@/lib/types';
 import { useAuth } from '@/providers/auth-provider';
 import { useTheme } from '@/providers/settings-provider';
@@ -39,6 +41,30 @@ export default function EditTaskScreen() {
     router.back();
   }
 
+  function confirmDelete() {
+    if (!task) return;
+    Alert.alert(
+      `¿Eliminar "${task.title}"?`,
+      'Se borran sus ocurrencias pendientes y no se genera más. El historial de las que ya se completaron se conserva.',
+      [
+        { text: 'No, volver', style: 'cancel' },
+        {
+          text: 'Sí, eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteTask(task.id);
+              AccessibilityInfo.announceForAccessibility('Tarea eliminada');
+              router.dismissAll();
+            } catch {
+              Alert.alert('Error', 'No se pudo eliminar la tarea. Probá de nuevo.');
+            }
+          },
+        },
+      ]
+    );
+  }
+
   if (!task) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', backgroundColor: colors.background }}>
@@ -48,12 +74,28 @@ export default function EditTaskScreen() {
   }
 
   return (
-    <TaskForm
-      heading="Editar tarea"
-      submitLabel="Guardar cambios"
-      initial={{ task, rotationIds, chainedIds }}
-      onSubmit={handleSubmit}
-      onCancel={() => router.back()}
-    />
+    <View style={{ flex: 1 }}>
+      <TaskForm
+        heading="Editar tarea"
+        submitLabel="Guardar cambios"
+        initial={{ task, rotationIds, chainedIds }}
+        onSubmit={handleSubmit}
+        onCancel={() => router.back()}
+      />
+      <View
+        style={{
+          padding: spacing.lg,
+          paddingTop: 0,
+          backgroundColor: colors.background,
+        }}
+      >
+        <Button
+          title="🗑 Eliminar tarea (y sus repeticiones)"
+          variant="danger"
+          onPress={confirmDelete}
+          accessibilityHint="Elimina la tarea definitivamente, con confirmación"
+        />
+      </View>
+    </View>
   );
 }

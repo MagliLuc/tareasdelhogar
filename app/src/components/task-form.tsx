@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   ScrollView,
   StyleSheet,
@@ -26,6 +27,40 @@ const TIMES = ['09:00', '12:00', '17:00', '20:00'];
 const DURATIONS = [5, 10, 15, 30, 45, 60];
 const POINTS = [5, 10, 20, 30];
 const TIME_RE = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
+// Qué tareas tiene sentido encadenar según el título (heurística)
+const CHAIN_HINTS: { trigger: RegExp; follow: RegExp }[] = [
+  { trigger: /cocin|cena|almuerzo|comida/i, follow: /plato|mesa|basura|cocina/i },
+  { trigger: /lavar.*ropa|lavarropas|lavado/i, follow: /tender|doblar|colgar|plancha|guardar/i },
+  { trigger: /compra/i, follow: /guardar|heladera|alacena|lista/i },
+  { trigger: /mesa/i, follow: /plato|basura/i },
+  { trigger: /baño/i, follow: /toalla|basura/i },
+];
+
+function normalizeTitle(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Tarea existente con título igual o muy parecido (para avisar duplicados) */
+export function findSimilarTask(title: string, tasks: Task[]): Task | undefined {
+  const target = normalizeTitle(title);
+  if (target.length < 4) return undefined;
+  return tasks.find((t) => {
+    const other = normalizeTitle(t.title);
+    return other === target || other.includes(target) || target.includes(other);
+  });
+}
+
+function suggestedChainCandidates(title: string, tasks: Task[]): Task[] {
+  const rules = CHAIN_HINTS.filter((r) => r.trigger.test(title));
+  if (rules.length === 0) return [];
+  return tasks.filter((t) => rules.some((r) => r.follow.test(t.title)));
+}
 
 export type TaskFormResult = Omit<NewTask, 'household_id' | 'created_by'>;
 
@@ -69,6 +104,7 @@ export function TaskForm({ heading, submitLabel, initial, onSubmit, onCancel }: 
   const [rotationIds, setRotationIds] = useState<string[]>(initial?.rotationIds ?? []);
   const [chainedIds, setChainedIds] = useState<string[]>(initial?.chainedIds ?? []);
 
+  const [showAllChains, setShowAllChains] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -127,6 +163,26 @@ export function TaskForm({ heading, submitLabel, initial, onSubmit, onCancel }: 
       return;
     }
 
+    // Aviso de duplicado (solo al crear)
+    if (!initial) {
+      const similar = findSimilarTask(title, allTasks);
+      if (similar) {
+        Alert.alert(
+          '¿Tarea repetida? 🤔',
+          `Ya existe una tarea muy parecida: "${similar.title}". ¿Seguro querés crear otra?`,
+          [
+            { text: 'No, mejor no', style: 'cancel' },
+            { text: 'Sí, crear igual', onPress: () => submit(parsedInterval) },
+          ]
+        );
+        return;
+      }
+    }
+
+    await submit(parsedInterval);
+  }
+
+  async function submit(parsedInterval: number) {
     setError(null);
     setSaving(true);
     try {
@@ -310,24 +366,47 @@ export function TaskForm({ heading, submitLabel, initial, onSubmit, onCancel }: 
           </View>
         )}
 
-        {allTasks.length > 0 && (
-          <>
-            {section('🔗 Al completarla, disparar también…')}
-            <Text style={{ fontSize: ts(13), color: colors.textMuted, marginBottom: spacing.sm }}>
-              Ej: al completar &quot;Cocinar&quot; se crea &quot;Lavar los platos&quot; para hoy.
-            </Text>
-            <View style={styles.chipRow}>
-              {allTasks.map((task) => (
+        {allTasks.length > 0 &&
+          (() => {
+            const suggested = suggestedChainCandidates(title, allTasks);
+            // Sugeridas + las ya encadenadas siempre visibles;
+            // el resto solo al pedir "mostrar todas"
+            const visible = showAllChains
+              ? allTasks
+              : allTasks.filter(
+                  (task) => suggested.includes(task) || chainedIds.includes(task.id)
+                );
+            return (
+              <>
+                {section('🔗 Al completarla, disparar también…')}
+                <Text style={{ fontSize: ts(13), color: colors.textMuted, marginBottom: spacing.sm }}>
+                  {suggested.length > 0 && !showAllChains
+                    ? 'Sugeridas según el título (ej: cocinar suele encadenar lavar los platos):'
+                    : 'Ej: al completar "Cocinar" se crea "Lavar los platos" para hoy.'}
+                </Text>
+                {visible.length === 0 && !showAllChains && (
+                  <Text style={{ fontSize: ts(13), color: colors.textMuted, marginBottom: spacing.sm }}>
+                    No hay sugerencias para este título.
+                  </Text>
+                )}
+                <View style={styles.chipRow}>
+                  {visible.map((task) => (
+                    <Chip
+                      key={task.id}
+                      label={task.title}
+                      selected={chainedIds.includes(task.id)}
+                      onPress={() => toggle(chainedIds, setChainedIds, task.id)}
+                    />
+                  ))}
+                </View>
                 <Chip
-                  key={task.id}
-                  label={task.title}
-                  selected={chainedIds.includes(task.id)}
-                  onPress={() => toggle(chainedIds, setChainedIds, task.id)}
+                  label={showAllChains ? 'Mostrar solo sugeridas' : 'Mostrar todas las tareas'}
+                  selected={false}
+                  onPress={() => setShowAllChains(!showAllChains)}
                 />
-              ))}
-            </View>
-          </>
-        )}
+              </>
+            );
+          })()}
 
         <View style={{ marginTop: spacing.lg }}>
           <ErrorText message={error} />
