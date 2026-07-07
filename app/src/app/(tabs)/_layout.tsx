@@ -18,10 +18,11 @@ export default function TabsLayout() {
     }
   }, [profile?.id, profile?.household_id]);
 
-  // Al tocar una notificación, abrir el detalle de la tarea
+  // Al tocar una notificación, abrir lo que corresponda
   useEffect(() => {
-    return addNotificationTapListener((instanceId) => {
-      router.push(`/task/${instanceId}`);
+    return addNotificationTapListener({
+      onTask: (instanceId) => router.push(`/task/${instanceId}`),
+      onShopping: () => router.push('/shopping'),
     });
   }, []);
 

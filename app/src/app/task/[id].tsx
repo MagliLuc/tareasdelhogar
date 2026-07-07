@@ -190,12 +190,21 @@ export default function TaskDetailScreen() {
             <Button title="Cancelar" variant="secondary" onPress={() => setReassigning(false)} />
           </View>
         ) : (
-          <Button
-            title="Pasar a otro miembro"
-            variant="secondary"
-            onPress={() => setReassigning(true)}
-            accessibilityHint="Muestra la lista de miembros para reasignar la tarea"
-          />
+          <>
+            <Button
+              title="Pasar a otro miembro"
+              variant="secondary"
+              onPress={() => setReassigning(true)}
+              accessibilityHint="Muestra la lista de miembros para reasignar la tarea"
+            />
+            <View style={{ height: spacing.sm }} />
+            <Button
+              title="✏️ Editar tarea"
+              variant="secondary"
+              onPress={() => router.push(`/task/edit/${instance.task_id}`)}
+              accessibilityHint="Edita título, horario, frecuencia y asignación de la tarea"
+            />
+          </>
         ))}
 
       {events.length > 0 && (

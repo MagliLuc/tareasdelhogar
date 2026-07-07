@@ -40,7 +40,8 @@ const MEMBER_COLORS = [
 
 export default function SettingsScreen() {
   const { colors, ts } = useTheme();
-  const { highContrast, textScale, setHighContrast, setTextScale } = useSettings();
+  const { highContrast, textScale, themeMode, setHighContrast, setTextScale, setThemeMode } =
+    useSettings();
   const { profile, refreshProfile, signOut } = useAuth();
   const insets = useSafeAreaInsets();
 
@@ -163,6 +164,30 @@ export default function SettingsScreen() {
       </Text>
 
       <ErrorText message={error} />
+
+      {/* ------------- Apariencia ------------- */}
+      {sectionHeader('Apariencia')}
+
+      <View style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: ts(16), fontWeight: '600', color: colors.text, marginBottom: spacing.sm }}>
+            Tema
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            <Chip
+              label="🌗 Sistema"
+              selected={themeMode === 'system'}
+              onPress={() => setThemeMode('system')}
+            />
+            <Chip label="☀️ Claro" selected={themeMode === 'light'} onPress={() => setThemeMode('light')} />
+            <Chip label="🌙 Oscuro" selected={themeMode === 'dark'} onPress={() => setThemeMode('dark')} />
+          </View>
+          <Text style={{ fontSize: ts(13), color: colors.textMuted }}>
+            &quot;Sistema&quot; sigue el modo claro/oscuro del teléfono. El alto contraste se
+            aplica en ambos.
+          </Text>
+        </View>
+      </View>
 
       {/* ------------- Accesibilidad ------------- */}
       {sectionHeader('Accesibilidad')}

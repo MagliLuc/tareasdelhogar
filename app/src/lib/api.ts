@@ -8,6 +8,7 @@ import {
   Profile,
   ScheduleKind,
   ShoppingItem,
+  Task,
   TaskInstance,
   WeeklyRankingRow,
   WorkSchedule,
@@ -123,11 +124,12 @@ export interface NewTask {
   assignment_type: 'manual' | 'rotative';
   assigned_to: string | null;
   rotation_member_ids: string[]; // solo para rotativas
+  chained_task_ids: string[]; // tareas que se disparan al completarla
   created_by: string;
 }
 
 export async function createTask(input: NewTask): Promise<void> {
-  const { rotation_member_ids, ...taskRow } = input;
+  const { rotation_member_ids, chained_task_ids, ...taskRow } = input;
 
   const { data: task, error } = await supabase
     .from('tasks')
@@ -143,10 +145,102 @@ export async function createTask(input: NewTask): Promise<void> {
     if (rmError) throw rmError;
   }
 
+  if (chained_task_ids.length > 0) {
+    const { error: chError } = await supabase.from('task_chains').insert(
+      chained_task_ids.map((next_task_id) => ({ task_id: task.id, next_task_id }))
+    );
+    if (chError) throw chError;
+  }
+
   // Generar las instancias recién ahora, con la rotación ya cargada
   const { error: genError } = await supabase.rpc('generate_task_instances', {
     p_days_ahead: 7,
     p_task_id: task.id,
+  });
+  if (genError) throw genError;
+}
+
+// ------------------------------------------------------------
+// Definiciones de tareas (para cadenas y edición)
+// ------------------------------------------------------------
+export async function fetchTasks(householdId: string): Promise<Task[]> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('household_id', householdId)
+    .eq('active', true)
+    .order('title');
+  if (error) throw error;
+  return data as Task[];
+}
+
+export async function fetchTask(taskId: string): Promise<Task> {
+  const { data, error } = await supabase.from('tasks').select('*').eq('id', taskId).single();
+  if (error) throw error;
+  return data as Task;
+}
+
+export async function fetchTaskRotation(taskId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('task_rotation_members')
+    .select('profile_id')
+    .eq('task_id', taskId);
+  if (error) throw error;
+  return (data as { profile_id: string }[]).map((r) => r.profile_id);
+}
+
+export async function fetchTaskChains(taskId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('task_chains')
+    .select('next_task_id')
+    .eq('task_id', taskId);
+  if (error) throw error;
+  return (data as { next_task_id: string }[]).map((r) => r.next_task_id);
+}
+
+/**
+ * Actualiza la definición de una tarea: reemplaza rotación y cadenas,
+ * borra las ocurrencias PENDIENTES (las completadas quedan en el
+ * historial) y regenera con la nueva configuración.
+ */
+export async function updateTask(taskId: string, input: NewTask): Promise<void> {
+  const { rotation_member_ids, chained_task_ids, created_by, ...taskRow } = input;
+  void created_by; // el creador original no cambia
+
+  const { error } = await supabase.from('tasks').update(taskRow).eq('id', taskId);
+  if (error) throw error;
+
+  const { error: delRotError } = await supabase
+    .from('task_rotation_members')
+    .delete()
+    .eq('task_id', taskId);
+  if (delRotError) throw delRotError;
+  if (input.assignment_type === 'rotative' && rotation_member_ids.length > 0) {
+    const { error: rmError } = await supabase.from('task_rotation_members').insert(
+      rotation_member_ids.map((profile_id) => ({ task_id: taskId, profile_id }))
+    );
+    if (rmError) throw rmError;
+  }
+
+  const { error: delChError } = await supabase.from('task_chains').delete().eq('task_id', taskId);
+  if (delChError) throw delChError;
+  if (chained_task_ids.length > 0) {
+    const { error: chError } = await supabase.from('task_chains').insert(
+      chained_task_ids.map((next_task_id) => ({ task_id: taskId, next_task_id }))
+    );
+    if (chError) throw chError;
+  }
+
+  const { error: delInstError } = await supabase
+    .from('task_instances')
+    .delete()
+    .eq('task_id', taskId)
+    .eq('status', 'pending');
+  if (delInstError) throw delInstError;
+
+  const { error: genError } = await supabase.rpc('generate_task_instances', {
+    p_days_ahead: 7,
+    p_task_id: taskId,
   });
   if (genError) throw genError;
 }

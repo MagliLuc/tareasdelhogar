@@ -39,6 +39,32 @@ export const highContrastPalette: Palette = {
   success: '#14532D',
 };
 
+// Modo noche
+export const darkPalette: Palette = {
+  primary: '#818CF8',
+  primaryDark: '#6366F1',
+  background: '#0F172A',
+  card: '#1E293B',
+  text: '#F1F5F9',
+  textMuted: '#94A3B8',
+  border: '#334155',
+  danger: '#F87171',
+  success: '#4ADE80',
+};
+
+// Modo noche + alto contraste: blanco puro sobre negro puro
+export const darkHighContrastPalette: Palette = {
+  primary: '#93C5FD',
+  primaryDark: '#60A5FA',
+  background: '#000000',
+  card: '#000000',
+  text: '#FFFFFF',
+  textMuted: '#E5E7EB',
+  border: '#FFFFFF',
+  danger: '#FCA5A5',
+  success: '#86EFAC',
+};
+
 // Compatibilidad con pantallas que aún no usan useTheme()
 export const colors = defaultPalette;
 

@@ -127,16 +127,23 @@ export async function scheduleLocalReminders(
 }
 
 /**
- * Al tocar una notificación, avisa con el id de la instancia para
- * navegar al detalle. Devuelve la función para desuscribirse.
+ * Al tocar una notificación, navega según su contenido: detalle de
+ * la tarea o lista de compras. Devuelve la función para desuscribirse.
  */
-export function addNotificationTapListener(onTap: (instanceId: string) => void): () => void {
+export function addNotificationTapListener(handlers: {
+  onTask: (instanceId: string) => void;
+  onShopping: () => void;
+}): () => void {
   const Notifications = getNotifications();
   if (!Notifications) return () => {};
 
   const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-    const instanceId = response.notification.request.content.data?.instanceId;
-    if (typeof instanceId === 'string') onTap(instanceId);
+    const data = response.notification.request.content.data;
+    if (typeof data?.instanceId === 'string') {
+      handlers.onTask(data.instanceId);
+    } else if (data?.screen === 'shopping') {
+      handlers.onShopping();
+    }
   });
   return () => sub.remove();
 }
